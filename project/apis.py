@@ -23,14 +23,19 @@ class GetTransferAmountView(GenericAPIView):
 
         try:
             deal = Deal.objects.prefetch_related('projects').get(id = pk)
-            projects = deal.projects.all()
+
+            # Serialize deal instance.
+            deal_serializer = DealSerializer(deal)
+
+            # Get projects from Deal Serializer
+            projects = deal_serializer.data.get('project_details', [])
 
             data = {}
             total = 0
 
             for project in projects:
-                tax_credit_transfer_amount = project.fmv * 0.3 * deal.tax_credit_transfer_rate
-                data[project.name] = tax_credit_transfer_amount
+                tax_credit_transfer_amount = project['fmv'] * 0.3 * deal.tax_credit_transfer_rate
+                data[project['name']] = tax_credit_transfer_amount
                 total += tax_credit_transfer_amount
             
             data['total'] = total
@@ -41,5 +46,9 @@ class GetTransferAmountView(GenericAPIView):
         except Deal.DoesNotExist:
             response.data['message'] = 'Deal does not exist!'
             response.status_code = status.HTTP_400_BAD_REQUEST 
+        
+        except Exception as e:
+            response.data['message'] = str(e)
+            response.status_code = status.HTTP_500_INTERNAL_SERVER_ERROR
 
         return response
